@@ -1,0 +1,29 @@
+{pdfData ? (
+    <div className="w-full max-w-3xl bg-white rounded-lg shadow-md p-6">
+      <Document
+        file={pdfData}
+        onLoadSuccess={onDocumentLoadSuccess}
+      >
+        <Page pageNumber={pageNumber} />
+      </Document>
+      <div className="mt-4 flex justify-between">
+        <button
+          onClick={() => setPageNumber(pageNumber - 1)}
+          disabled={pageNumber <= 1}
+          className="text-blue-500 font-semibold"
+        >
+          Previous
+        </button>
+        <span>Page {pageNumber} of {numPages}</span>
+        <button
+          onClick={() => setPageNumber(pageNumber + 1)}
+          disabled={pageNumber >= numPages}
+          className="text-blue-500 font-semibold"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  ) : (
+    <p>Loading PDF...</p>
+  )}

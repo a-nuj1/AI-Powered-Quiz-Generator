@@ -1,4 +1,4 @@
-{pdfData ? (
+/* {pdfData ? (
     <div className="w-full max-w-3xl bg-white rounded-lg shadow-md p-6">
       <Document
         file={pdfData}
@@ -26,4 +26,4 @@
     </div>
   ) : (
     <p>Loading PDF...</p>
-  )}
+  )} */

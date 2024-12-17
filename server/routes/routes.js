@@ -1,5 +1,5 @@
 import express from 'express';
-import { deletePDF, getPDF, parsePDF, uploadPDF, viewPDF } from '../controllers/pdfController.js';
+import { deletePDF, generateAIQuestions, getPDF, parsePDF, uploadPDF, viewPDF } from '../controllers/pdfController.js';
 import upload from '../middlwares/multer.js';
 
 const app = express.Router();
@@ -18,6 +18,9 @@ app.delete('/deletepdf/:id',deletePDF);
 
 // Parse PDF
 app.post('/parse-pdf', parsePDF);
+
+// Generate AI Questions
+app.post("/generate-questions", generateAIQuestions);
 
 export default app;
 

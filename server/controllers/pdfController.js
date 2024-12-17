@@ -2,6 +2,9 @@ import pdfDetails from "../models/pdfDetails.js";
 import { v2 as cloudinary } from "cloudinary";
 import pdfParse from "pdf-parse";
 import axios from "axios";
+import OpenAI from "openai";
+import dotenv from "dotenv";
+dotenv.config();
 
 const uploadPDF = (req, res) => {
   try {
@@ -102,7 +105,10 @@ const deletePDF = async (req, res) => {
       resource_type: "image", // Correct resource type for PDFs
     });
 
-    if (cloudinaryResponse.result !== "ok" && cloudinaryResponse.result !== "not_found") {
+    if (
+      cloudinaryResponse.result !== "ok" &&
+      cloudinaryResponse.result !== "not_found"
+    ) {
       return res
         .status(500)
         .json({ message: "Failed to delete file from Cloudinary" });
@@ -121,18 +127,17 @@ const deletePDF = async (req, res) => {
   }
 };
 
-
 const parsePDF = async (req, res) => {
-  const { pdfUrl } = req.body; 
+  const { pdfUrl } = req.body;
 
   if (!pdfUrl) {
-    return res.status(400).json({ error: 'PDF URL is required' });
+    return res.status(400).json({ error: "PDF URL is required" });
   }
 
   try {
     // Fetch the PDF from the provided URL
     const response = await axios.get(pdfUrl, {
-      responseType: 'arraybuffer', // Ensure binary data
+      responseType: "arraybuffer", // Ensure binary data
     });
 
     // Parse the PDF content
@@ -141,9 +146,59 @@ const parsePDF = async (req, res) => {
     // Return the extracted text
     res.status(200).json({ text: pdfData.text });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to parse the PDF' });
+    res.status(500).json({ error: "Failed to parse the PDF" });
   }
 };
 
 
-export { uploadPDF, getPDF, deletePDF, viewPDF, parsePDF};
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+
+
+const generateAIQuestions = async (req, res) => {
+  const { text } = req.body;
+  // console.log('text:',text);
+
+  if (!text) {
+    return res
+      .status(400)
+      .json({ message: "Text is required for question generation." });
+  }
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a helpful assistant for generating educational questions.",
+        },
+        {
+          role: "user",
+          content: `I am providing a set of educational questions. Please generate 20 new multiple-choice questions that are similar in  difficulty, and topic. The questions should cover similar topics. Here are the sample questions:\n\n${text}\n\n
+          Please generate 20 new similar questions.`,
+        },
+      ],
+      max_tokens: 2480,
+      temperature: 1,
+    });
+
+    const similarQuestions = completion.choices[0].message.content
+      .trim()
+      .split("\n")
+      .filter(Boolean)
+      .map((q) => ({ Q: q }));
+
+    res.status(200).json({ questions: similarQuestions });
+  } catch (error) {
+    console.error("Error generating AI questions:", error.message);
+    res.status(500).json({ message: "Failed to generate questions" });
+  }
+};
+
+
+export { uploadPDF, getPDF, deletePDF, viewPDF, parsePDF, generateAIQuestions };

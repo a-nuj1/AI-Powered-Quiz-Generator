@@ -4,6 +4,7 @@ import pdfParse from "pdf-parse";
 import axios from "axios";
 import OpenAI from "openai";
 import dotenv from "dotenv";
+import Question from "../models/question.js";
 dotenv.config();
 
 const uploadPDF = (req, res) => {
@@ -150,17 +151,12 @@ const parsePDF = async (req, res) => {
   }
 };
 
-
-
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-
-
 const generateAIQuestions = async (req, res) => {
   const { text } = req.body;
-  // console.log('text:',text);
 
   if (!text) {
     return res
@@ -179,21 +175,64 @@ const generateAIQuestions = async (req, res) => {
         },
         {
           role: "user",
-          content: `I am providing a set of educational questions. Please generate 20 new multiple-choice questions that are similar in  difficulty, and topic. The questions should cover similar topics. Here are the sample questions:\n\n${text}\n\n
-          Please generate 20 new similar questions.`,
+          content: `I am providing a set of educational questions. Please generate 10 new multiple-choice questions that are similar in difficulty and topic. Each question should have 4 options (a, b, c, d) and an answer. Format the questions as follows:\n a. Option 1\n    b. Option 2\n    c. Option 3\n    d. Option 4\nAnswer: Option \n\nHere are the sample questions:\n\n${text}\n\nPlease generate 10 new similar questions.`,
         },
       ],
       max_tokens: 2480,
       temperature: 1,
     });
 
-    const similarQuestions = completion.choices[0].message.content
+    const formattedQuestions = completion.choices[0].message.content
       .trim()
-      .split("\n")
-      .filter(Boolean)
-      .map((q) => ({ Q: q }));
+      .split("\n\n")
+      .map((block, index) => {
+        // Split the block into lines
+        const lines = block.split("\n");
 
-    res.status(200).json({ questions: similarQuestions });
+        // The first line is the question, which starts with "Q"
+        const questionLine = lines[0].replace(/^Q\d+\s*-\s*/, "").trim();  // Removes the "Q1 - " part
+
+        // The next 4 lines are options
+        const options = lines.slice(1, 5).map(opt => opt.trim());
+
+        // The last line is the answer
+        const answerLine = lines[5]?.replace("Answer:", "").trim();
+
+        return {
+          // id: index + 1,
+          question: questionLine,
+          options: options,
+          answer: answerLine,
+        };
+      });
+
+    // Validate the questions
+    const validateQuestions = (questions) => {
+      return questions.filter((q) => {
+        if (!q.question || typeof q.question !== "string" || q.question.trim() === "") {
+          return false;
+        }
+
+        if (!Array.isArray(q.options) || q.options.length !== 4 || !q.options.every((opt) => typeof opt === "string" && opt.trim() !== "")) {
+          return false;
+        }
+
+        if (!q.answer || typeof q.answer !== "string" || q.answer.trim() === "") {
+          return false;
+        }
+
+        return true;  // Valid question
+      });
+    };
+
+    const validQuestions = validateQuestions(formattedQuestions);
+    // console.log(validQuestions);
+
+      // Save questions to the database
+      await Question.insertMany(validQuestions);
+
+
+    res.status(200).json({ questions: validQuestions });
   } catch (error) {
     console.error("Error generating AI questions:", error.message);
     res.status(500).json({ message: "Failed to generate questions" });
@@ -201,4 +240,77 @@ const generateAIQuestions = async (req, res) => {
 };
 
 
-export { uploadPDF, getPDF, deletePDF, viewPDF, parsePDF, generateAIQuestions };
+// save generated questions to database
+// const saveQuestions = async (req, res) => {
+//   const { questions } = req.body;
+
+//   if (!questions || !Array.isArray(questions) || questions.length === 0) {
+//     return res.status(400).json({ message: "Questions are required" });
+//   }
+
+//   try {
+//     const savedQuestions = await Question.insertMany(questions);
+//     res.status(200).json({
+//       questions: savedQuestions,
+//       message: "Questions saved successfully",
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       message: "Failed to save questions",
+//       error: error.message,
+//     });
+//   }
+// };
+
+
+// get generated questions from database
+const getQuestions = async (req, res) => {
+  try {
+    const questions = await Question.find();
+    res.status(200).json({ 
+      questions,
+      message: "Questions fetched successfully",
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      message: "Failed to get questions",
+      error: error.message,
+
+     });
+  }
+};
+
+
+// calculate score
+const calculateScore = async (req, res) => {
+  const {userAnswers} = req.body;
+
+  if (!userAnswers || !Array.isArray(userAnswers) || userAnswers.length === 0) {
+    return res.status(400).json({ message: "User answers are required" });
+  }
+
+  try {
+    const questions = await Question.find();
+    let score = 0;
+    questions.forEach((question, index) => {
+      if (question.answer === userAnswers[index]) {
+        score += 1;
+      }
+    });
+
+    res.status(200).json({ 
+      score, 
+      message: "Score calculated successfully" 
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      message: "Failed to calculate score", 
+      error: error.message 
+    });
+  }
+};
+
+
+
+
+export { uploadPDF, getPDF, deletePDF, viewPDF, parsePDF, generateAIQuestions, getQuestions,calculateScore };

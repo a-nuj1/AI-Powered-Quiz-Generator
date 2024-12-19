@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom'; // Import useLocation and useNavigate
+import { useLocation, useNavigate } from 'react-router-dom'; 
 
 const ResultPage = () => {
-  const { state } = useLocation(); // Access state passed from the quiz page
+  const { state } = useLocation(); // Get the state  passed from the QuizPage
   const [score, setScore] = useState(null);
-  const navigate = useNavigate(); // Initialize navigate hook
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (state && state.score !== undefined) {

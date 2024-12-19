@@ -24,6 +24,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+//file is temporarily stored in memory as a Buffer instead of being saved to disk.
 const storage = multer.memoryStorage();
 
 const upload = multer({

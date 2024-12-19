@@ -6,17 +6,19 @@ import { server } from './Home';
 const QuizPage = () => {
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState([]); // This will hold answers
+  const [selectedAnswers, setSelectedAnswers] = useState([]); // This will hold answers of the users
   const [timer, setTimer] = useState(45);
   const [quizCompleted, setQuizCompleted] = useState(false); // Track quiz completion
-  const navigate = useNavigate(); // Initialize navigate hook
+  const navigate = useNavigate(); 
 
-  // Fetch questions from API
+
+
+  // Fetch questions from database
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
         const res = await axios.get(`${server}/api/questions`);
-        setQuestions(res.data.questions); // Assuming response contains `questions`
+        setQuestions(res.data.questions); 
       } catch (error) {
         console.error("Error in fetching questions:", error);
       }
@@ -33,7 +35,9 @@ const QuizPage = () => {
     return () => clearInterval(interval); // Cleanup interval on unmount
   }, [timer]);
 
-  // Handle next question logic
+
+
+  // Handle next question or finish quiz
   const handleNext = () => {
     if (currentQuestionIndex < questions.length - 1) {
       // Move to the next question
@@ -46,20 +50,24 @@ const QuizPage = () => {
     }
   };
 
-  // Handle user's answer selection
+  // Handle user's answer on selection of an option
   const handleOptionChange = (option) => {
     const updatedAnswers = [...selectedAnswers];
     updatedAnswers[currentQuestionIndex] = option; // Store the answer for this question index
+    
     console.log(updatedAnswers);
+
+    
     setSelectedAnswers(updatedAnswers);
   };
+
 
   // Submit answers when quiz is completed and navigate to result page
   const handleSubmit = async () => {
     try {
       // Send answers to the backend to calculate score
       const res = await axios.post(`${server}/api/calculate-score`, { userAnswers: selectedAnswers });
-      const { score } = res.data; // Assuming backend returns score
+      const { score } = res.data; // Get the score from the response data
 
       // Redirect to the result page with the score
       navigate('/result', { state: { score } });

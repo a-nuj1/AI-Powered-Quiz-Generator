@@ -1,7 +1,7 @@
 import axios from "axios";
 import React, { useEffect, useRef, useState } from "react";
 import { MdDeleteForever } from "react-icons/md";
-import { useNavigate } from "react-router-dom"; // Import useNavigate for navigation
+import { useNavigate } from "react-router-dom"; 
 
 function Home() {
   const [pdfFile, setPdfFile] = useState(null);
@@ -9,7 +9,9 @@ function Home() {
   const [uploads, setUploads] = useState([]);
   const [title, setTitle] = useState("");
   const fileInputRef = useRef(null);
-  const navigate = useNavigate(); // Initialize navigate
+  const navigate = useNavigate(); 
+
+  // hadle file change and set the message accordingly
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
@@ -20,6 +22,8 @@ function Home() {
       setMessage("Please upload a valid PDF file.");
     }
   };
+
+  // handle the upload of the file and set the message accordingly
 
   const handleUpload = async () => {
     if (!title.trim()) {
@@ -59,6 +63,8 @@ function Home() {
     }
   };
 
+
+  // view the file in a new tab
   const viewHandler = async (id) => {
     try {
       if (typeof id !== "string") {
@@ -66,7 +72,9 @@ function Home() {
         return;
       }
 
+     
       const fileName = id.split("/").pop();
+      // console.log(fileName);
       const response = await axios.get(`${server}/api/files/${fileName}`);
 
       if (response.data.pdfUrl) {
@@ -79,6 +87,7 @@ function Home() {
     }
   };
 
+  // handle the delete of the file and set the message accordingly
   const handleDelete = async (id) => {
     try {
       const response = await axios.delete(`${server}/api/deletepdf/${id}`);
@@ -94,10 +103,13 @@ function Home() {
     }
   };
 
+  // handle the parse of the file and navigate to the parse page
   const handleParse = (file) => {
     navigate("/home", { state: { pdfUrl: file.pdf } }); // Pass file as state
   };
 
+
+  // fetch the files from the server and display to the home page
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -111,6 +123,8 @@ function Home() {
     fetchData();
   }, []);
 
+
+  
   return (
     <div className="flex flex-col items-center min-h-screen bg-gray-200 px-4">
       <div className="w-full max-w-lg bg-white rounded-lg shadow-md mt-10 p-6">

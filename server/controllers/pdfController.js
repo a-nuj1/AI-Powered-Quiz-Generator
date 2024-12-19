@@ -4,6 +4,8 @@ import pdfParse from "pdf-parse";
 import axios from "axios";
 import OpenAI from "openai";
 import dotenv from "dotenv";
+import {GoogleGenerativeAI} from "@google/generative-ai";
+
 import Question from "../models/question.js";
 dotenv.config();
 
@@ -65,6 +67,7 @@ const getPDF = async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 
 const viewPDF = async (req, res) => {
   try {
@@ -151,9 +154,14 @@ const parsePDF = async (req, res) => {
   }
 };
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+
+// Google API Key 
+
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
+
+console.log(genAI);
+
+
 
 const generateAIQuestions = async (req, res) => {
   const { text } = req.body;
@@ -165,73 +173,38 @@ const generateAIQuestions = async (req, res) => {
   }
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a helpful assistant for generating educational questions.",
-        },
-        {
-          role: "user",
-          content: `I am providing a set of educational questions. Please generate 10 new multiple-choice questions that are similar in difficulty and topic. Each question should have 4 options (a, b, c, d) and an answer. Format the questions as follows:\n a. Option 1\n    b. Option 2\n    c. Option 3\n    d. Option 4\nAnswer: Option \n\nHere are the sample questions:\n\n${text}\n\nPlease generate 10 new similar questions.`,
-        },
-      ],
-      max_tokens: 2480,
-      temperature: 1,
+    const truncatedText = text.substring(0, 800);
+
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const prompt = `
+  Generate 10 multiple-choice questions related to this topic: ${truncatedText}.
+  Format strictly as:
+  Q-<number>: Question text
+  a. Option 1
+  b. Option 2
+  c. Option 3
+  d. Option 4
+  Answer: a, b, c, or d`;
+
+    const result = await model.generateContent(prompt);
+    const aiResponse = result.response.text().trim();
+
+    const formattedQuestions = aiResponse.split(/Q-\d+:/).slice(1).map((block) => {
+      const [question, ...rest] = block.split("\n").map((line) => line.trim());
+      const options = rest.slice(0, 4);
+      const answer = rest[4]?.replace("Answer:", "").trim();
+      return { question, options, answer };
     });
 
-    const formattedQuestions = completion.choices[0].message.content
-      .trim()
-      .split("\n\n")
-      .map((block, index) => {
-        // Split the block into lines
-        const lines = block.split("\n");
+    const validQuestions = formattedQuestions.filter(
+      (q) =>
+        q.question &&
+        Array.isArray(q.options) &&
+        q.options.length === 4 &&
+        q.answer
+    );
 
-        // The first line is the question, which starts with "Q"
-        const questionLine = lines[0].replace(/^Q\d+\s*-\s*/, "").trim();  // Removes the "Q1 - " part
-
-        // The next 4 lines are options
-        const options = lines.slice(1, 5).map(opt => opt.trim());
-
-        // The last line is the answer
-        const answerLine = lines[5]?.replace("Answer:", "").trim();
-
-        return {
-          // id: index + 1,
-          question: questionLine,
-          options: options,
-          answer: answerLine,
-        };
-      });
-
-    // Validate the questions
-    const validateQuestions = (questions) => {
-      return questions.filter((q) => {
-        if (!q.question || typeof q.question !== "string" || q.question.trim() === "") {
-          return false;
-        }
-
-        if (!Array.isArray(q.options) || q.options.length !== 4 || !q.options.every((opt) => typeof opt === "string" && opt.trim() !== "")) {
-          return false;
-        }
-
-        if (!q.answer || typeof q.answer !== "string" || q.answer.trim() === "") {
-          return false;
-        }
-
-        return true;  // Valid question
-      });
-    };
-
-    const validQuestions = validateQuestions(formattedQuestions);
-    // console.log(validQuestions);
-
-      // Save questions to the database
-      await Question.insertMany(validQuestions);
-
-
+    await Question.insertMany(validQuestions);
     res.status(200).json({ questions: validQuestions });
   } catch (error) {
     console.error("Error generating AI questions:", error.message);
@@ -240,27 +213,7 @@ const generateAIQuestions = async (req, res) => {
 };
 
 
-// save generated questions to database
-// const saveQuestions = async (req, res) => {
-//   const { questions } = req.body;
 
-//   if (!questions || !Array.isArray(questions) || questions.length === 0) {
-//     return res.status(400).json({ message: "Questions are required" });
-//   }
-
-//   try {
-//     const savedQuestions = await Question.insertMany(questions);
-//     res.status(200).json({
-//       questions: savedQuestions,
-//       message: "Questions saved successfully",
-//     });
-//   } catch (error) {
-//     res.status(500).json({
-//       message: "Failed to save questions",
-//       error: error.message,
-//     });
-//   }
-// };
 
 
 // get generated questions from database
@@ -283,7 +236,7 @@ const getQuestions = async (req, res) => {
 
 // calculate score
 const calculateScore = async (req, res) => {
-  const {userAnswers} = req.body;
+  const { userAnswers } = req.body;
 
   if (!userAnswers || !Array.isArray(userAnswers) || userAnswers.length === 0) {
     return res.status(400).json({ message: "User answers are required" });
@@ -292,23 +245,26 @@ const calculateScore = async (req, res) => {
   try {
     const questions = await Question.find();
     let score = 0;
+
     questions.forEach((question, index) => {
-      if (question.answer === userAnswers[index]) {
+      const userAnswer = userAnswers[index];
+      if (userAnswer && question.answer === userAnswer.charAt(0)) {
         score += 1;
       }
     });
 
-    res.status(200).json({ 
-      score, 
-      message: "Score calculated successfully" 
+    res.status(200).json({
+      score,
+      message: "Score calculated successfully",
     });
   } catch (error) {
-    res.status(500).json({ 
-      message: "Failed to calculate score", 
-      error: error.message 
+    res.status(500).json({
+      message: "Failed to calculate score",
+      error: error.message,
     });
   }
 };
+
 
 
 

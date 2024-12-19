@@ -17,12 +17,16 @@ const HomePage = () => {
     }
   }, [location.state]);
 
+
+  // uses this useEffect to parse the PDF file as soon as we clicked the parse button in home page
+
   useEffect(() => {
     if (pdfUrl) {
       handleParse();
     }
   }, [pdfUrl]);
 
+  // Function to handle parsing the PDF file 
   const handleParse = async () => {
     try {
       const response = await axios.post(`${server}/api/parse-pdf`, {
@@ -35,7 +39,7 @@ const HomePage = () => {
     }
   };
 
-  // Function to clean and format parsed text with margins adjustments
+  // Function to clean and format parsed text with margins adjustments 
   const formatParsedText = (text) => {
     const lines = text.split("\n"); // Split text into lines
     const filteredLines = lines.filter((line) => {
@@ -75,15 +79,41 @@ const HomePage = () => {
     return formattedText;
   };
 
+
+  // Function to handle generating similar questions using AI
+  // const handleGenerateAIQuestions = async () => {
+  //   // Navigate immediately to the "Generate Similar Questions" page
+  //   navigate("/similar-questions", { state: { generating: true } });
+
+  //   try {
+  //     // Simulate the generation process in the background
+  //     const response = await axios.post(`${server}/api/generate-questions`, {
+  //       text: parsedText,
+  //     });
+  //     // Once questions are generated, update the state with the questions
+  //     navigate("/similar-questions", { state: { questions: response.data.questions } });
+  //   } catch (error) {
+  //     console.error("Error generating AI questions:", error.response?.data || error.message);
+  //     alert(error.response?.data?.message || "Failed to generate similar questions");
+  //   }
+  // };
+
   const handleGenerateAIQuestions = async () => {
     // Navigate immediately to the "Generate Similar Questions" page
     navigate("/similar-questions", { state: { generating: true } });
-
+  
     try {
+      // Preprocess text to separate repeated sections
+      const preprocessedText = parsedText.replace(
+        /The elements of a linked list are stored.*?\n\n/g,
+        "QUESTION_MARKER"
+      );
+  
       // Simulate the generation process in the background
       const response = await axios.post(`${server}/api/generate-questions`, {
-        text: parsedText,
+        text: preprocessedText,
       });
+  
       // Once questions are generated, update the state with the questions
       navigate("/similar-questions", { state: { questions: response.data.questions } });
     } catch (error) {

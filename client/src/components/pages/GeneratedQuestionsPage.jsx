@@ -6,12 +6,13 @@ const GeneratedQuestionsPage = () => {
   const { questions = [] } = location.state || {};
   const [filteredQuestions, setFilteredQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate(); // Initialize useNavigate hook
+  const navigate = useNavigate(); 
 
   useEffect(() => {
-    // Method to filter out invalid questions
+   
+
     const validateQuestions = (questions) => {
-      const questionRegex = /^Q\d+\s*-\s*\*\*\d+\s*-.*\*\*/; // Update based on your AI response format
+      const questionRegex = /^Q\d+:.*$/; 
       return questions.filter((question) => {
         // Ensure the question has valid properties and fits the expected structure
         return (
@@ -20,7 +21,7 @@ const GeneratedQuestionsPage = () => {
           Array.isArray(question.options) &&
           question.options.length > 0 &&
           typeof question.answer === "string" &&
-          !questionRegex.test(question.question) // Exclude prompts like "Q1, Q2, etc."
+          !questionRegex.test(question.question)
         );
       });
     };

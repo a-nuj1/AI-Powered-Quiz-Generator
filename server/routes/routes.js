@@ -7,6 +7,7 @@ const app = express.Router();
 // upload pdf file
 app.post('/uploadpdf',upload.single("file") ,uploadPDF);
 
+
 // get pdf file
 app.get('/getpdf',getPDF);
 
